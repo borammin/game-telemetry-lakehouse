@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Telemetry Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 760px; padding: 0 1rem; }
+    input, button { font-size: 1rem; padding: .4rem .6rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    td, th { border-bottom: 1px solid #ddd; padding: .4rem; text-align: left; }
+    .bar { background: #3b82f6; height: 14px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://127.0.0.1:8000";
+
+    function Genres() {
+      const [rows, setRows] = React.useState([]);
+      React.useEffect(() => { fetch(`${API}/stats/genres`).then(r => r.json()).then(setRows); }, []);
+      const max = Math.max(1, ...rows.map(r => r.total_playtime_seconds));
+      return (
+        <section>
+          <h2>Playtime by genre</h2>
+          <table><tbody>
+            {rows.map(r => (
+              <tr key={r.genre}>
+                <td>{r.genre}</td>
+                <td style={{ width: "60%" }}><div className="bar" style={{ width: `${100 * r.total_playtime_seconds / max}%` }} /></td>
+                <td>{Math.round(r.total_playtime_seconds / 3600).toLocaleString()} h</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </section>
+      );
+    }
+
+    function Player() {
+      const [id, setId] = React.useState("P0000001");
+      const [data, setData] = React.useState(null);
+      const [err, setErr] = React.useState("");
+      const lookup = async () => {
+        setErr(""); setData(null);
+        const r = await fetch(`${API}/players/${id}/stats`);
+        if (!r.ok) return setErr("Player not found");
+        setData(await r.json());
+      };
+      return (
+        <section>
+          <h2>Player lookup</h2>
+          <input value={id} onChange={e => setId(e.target.value)} />{" "}
+          <button onClick={lookup}>Look up</button>
+          {err && <p>{err}</p>}
+          {data && (
+            <div>
+              <p>{(data.total_playtime_seconds / 3600).toFixed(1)} hours across {data.distinct_titles} titles</p>
+              <ol>{data.top_titles.map(t => <li key={t.title_id}>{t.title_id} ({(t.playtime / 3600).toFixed(1)} h)</li>)}</ol>
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <div><h1>Game Telemetry Dashboard</h1><Genres /><Player /></div>
+    );
+  </script>
+</body>
+</html>

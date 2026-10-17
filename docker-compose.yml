@@ -1,0 +1,19 @@
+services:
+  pipeline:
+    build: .
+    command: sh -c "python generator/generate_events.py --rows 1000000 --out data/raw && python pipeline/medallion.py"
+    volumes:
+      - ./data:/app/data
+
+  api:
+    build: .
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    environment:
+      CACHE_ENABLED: "1"
+      CACHE_TTL: "60"
+    volumes:
+      - ./data:/app/data
